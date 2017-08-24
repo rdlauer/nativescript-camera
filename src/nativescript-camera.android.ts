@@ -8,7 +8,6 @@ import * as platform from "platform";
 
 var REQUEST_IMAGE_CAPTURE = 3453;
 var REQUEST_REQUIRED_PERMISSIONS = 1234;
-
 export var takePicture = function (options?): Promise<any> {
     return new Promise((resolve, reject) => {
         try {
@@ -16,6 +15,13 @@ export var takePicture = function (options?): Promise<any> {
                 reject(new Error("Application does not have permissions to use Camera"));
                 return;
             }
+
+
+            let activity:any = applicationModule.android.foregroundActivity;
+            let deviceOrientation = activity.getResources().getConfiguration().orientation;
+            console.log(deviceOrientation);
+
+            
 
             let types: typeof typesModule = require("utils/types");
             let utils: typeof utilsModule = require("utils/utils");
@@ -37,9 +43,23 @@ export var takePicture = function (options?): Promise<any> {
                 saveToGallery = false;
             }
 
+
+
+
+            let info = new android.hardware.Camera.CameraInfo();
+            let cameraId = android.hardware.Camera.getNumberOfCameras()-1
+            android.hardware.Camera.getCameraInfo(cameraId, info);
+            console.log("Camera orientation = " + info.orientation);
+
+            let camera:android.hardware.Camera = android.hardware.Camera.open();
+            setCameraDisplayOrientation(activity, cameraId, camera);
+
+            console.log("Camera orientation = " + info.orientation);
+
             let takePictureIntent = new android.content.Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
             let dateStamp = createDateTimeStamp();
 
+            
             let picturePath: string;
             let nativeFile;
             let tempPictureUri;
@@ -61,6 +81,7 @@ export var takePicture = function (options?): Promise<any> {
                 tempPictureUri = android.net.Uri.fromFile(nativeFile);
             }
 
+            console.log("before put extra request");
             takePictureIntent.putExtra(android.provider.MediaStore.EXTRA_OUTPUT, tempPictureUri);
 
             if (takePictureIntent.resolveActivity(utils.ad.getApplicationContext().getPackageManager()) != null) {
@@ -68,9 +89,10 @@ export var takePicture = function (options?): Promise<any> {
                 let appModule: typeof applicationModule = require("application");
 
                 appModule.android.on("activityResult", (args) => {
+                    
                     const requestCode = args.requestCode;
                     const resultCode = args.resultCode;
-
+                    
                     if (requestCode === REQUEST_IMAGE_CAPTURE && resultCode === android.app.Activity.RESULT_OK) {
                         if (saveToGallery) {
                             try {
@@ -98,6 +120,7 @@ export var takePicture = function (options?): Promise<any> {
                         resolve(asset);
                     }
                 });
+
 
                 appModule.android.foregroundActivity.startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
 
@@ -133,4 +156,29 @@ var createDateTimeStamp = function () {
         date.getMinutes().toString() +
         date.getSeconds().toString();
     return result;
+}
+
+var setCameraDisplayOrientation = function(activity:any, cameraId:number, camera:android.hardware.Camera) {
+    let info:android.hardware.Camera.CameraInfo = new android.hardware.Camera.CameraInfo();
+    android.hardware.Camera.getCameraInfo(cameraId, info);
+    let rotation:number = activity.getWindowManager().getDefaultDisplay().getRotation();
+    let degrees:number = 0;
+
+    switch (rotation) {
+        case android.view.Surface.ROTATION_0: degrees = 0; break;
+        case android.view.Surface.ROTATION_90: degrees = 90; break;
+        case android.view.Surface.ROTATION_180: degrees = 180; break;
+        case android.view.Surface.ROTATION_270: degrees = 270; break;
+    }
+
+    let result:number;
+    if (info.facing == android.hardware.Camera.CameraInfo.CAMERA_FACING_FRONT) {
+        result = (info.orientation + degrees) % 360;
+        result = (360 - result) % 360;  // compensate the mirror
+    } else {  // back-facing
+        result = (info.orientation - degrees + 360) % 360;
+    }
+    console.log(degrees);
+    console.log(result);
+    camera.setDisplayOrientation(270);
 }
