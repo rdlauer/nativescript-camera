@@ -29,7 +29,7 @@
 		"requireModules": ["nativescript-camera"]
     },
     "dependencies": {
-        "nativescript-angular": "1.1.0",
+        "nativescript-angular": "7.0.0",
         "@angular/core": "2.1.0",
         "@angular/common": "2.1.0",
         "@angular/compiler": "2.1.0",
@@ -42,6 +42,6 @@
     },
     "devDependencies": {
         "zone.js": "~0.6.21",
-        "nativescript-dev-typescript": "^0.3.2"
+        "nativescript-dev-typescript": "^0.7.5"
     }
 }
